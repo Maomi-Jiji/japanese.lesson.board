@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Japanese にほんご レッスンボード</title>
+  <style>
+    /* ========== ベースデザイン・カラー設定 ========== */
+    :root {
+      --bg-color: #f7f3fb;
+      --header-bg: #e3d5f5;
+      --primary: #9b72d8;
+      --primary-hover: #835cc0;
+      --text-main: #4a4a4a;
+      --white: #ffffff;
+      --border: #d1bfe8;
+      --red: #ff5252;
+      --blue: #448aff;
+      --alert-bg: #fff9c4;
+      --alert-border: #fbc02d;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'BIZ UDPGothic', 'Morisawa BIZ UDPGothic', 'Noto Sans JP', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    /* フリガナ（ルビ）の調整 */
+    rt {
+      font-size: 0.65em;
+      color: #777; /* フリガナは少し落ち着いた色にしてメインの文字を邪魔しないように */
+    }
+
+    .eng-text { 
+      display: block; 
+      font-size: 0.85rem; 
+      color: #666666; 
+      margin-top: 4px; 
+      font-weight: normal; 
+      transition: color 0.3s ease;
+    }
+
+    .upload-btn .eng-text, 
+    .home-back-btn .eng-text,
+    .choice-card:hover .eng-text,
+    .left-mode-tabs input[type="radio"]:checked + label .eng-text,
+    .toggle-container input[type="radio"]:checked + label .eng-text,
+    .tool-btn.active .eng-text {
+      color: #ffffff !important;
+      opacity: 0.9;
+    }
+    
+    .left-mode-tabs input[type="radio"]:checked + label rt,
+    .toggle-container input[type="radio"]:checked + label rt,
+    .tool-btn.active rt {
+      color: #ffffff; /* 紫背景の時はフリガナも白にする */
+      opacity: 0.9;
+    }
+
+    /* ========== 画面切り替え用のラッパー ========== */
+    #modeTop {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 25px;
+      height: 100vh;
+      width: 100vw;
+      background-color: var(--bg-color);
+      z-index: 10000;
+      position: absolute;
+      top: 0; left: 0;
+    }
+
+    #modeNormal {
+      display: none; 
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #modeWhiteboard {
+      display: none; 
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: var(--white);
+      z-index: 9999;
+    }
+
+    /* ========== TOPページ専用デザイン ========== */
+    .top-title {
+      font-size: 2.8rem;
+      color: var(--primary);
+      margin: 0; 
+      flex-grow: 0;
+      text-align: center;
+    }
+    .top-subtitle {
+      font-size: 1.4rem;
+      color: var(--text-main);
+      margin: 0; 
+      flex-grow: 0;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .top-subtitle .eng-text { font-size: 1rem; margin-top: 6px; }
+    
+    .top-choices {
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 15px;
+    }
+    .choice-card {
+      background: var(--white);
+      border: 3px solid var(--primary);
+      border-radius: 15px;
+      padding: 35px 20px;
+      width: 260px;
+      text-align: center;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      transition: all 0.3s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+    .choice-card:hover { background: var(--primary); color: var(--white); transform: translateY(-5px); }
+    .choice-icon { font-size: 3.5rem; }
+    .choice-title { font-size: 1.3rem; font-weight: bold; }
+    .choice-desc { font-size: 0.9rem; color: #666; }
+    .choice-card:hover .choice-desc { color: #eee; }
+
+    /* 表記切り替えスイッチ */
+    .toggle-container {
+      display: flex;
+      gap: 5px;
+      background: var(--white);
+      padding: 5px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .toggle-container label {
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    .toggle-container input[type="radio"] { display: none; }
+    .toggle-container input[type="radio"]:checked + label { background: var(--primary); color: var(--white); }
+
+    /* ========== ヘッダー・メニュー (通常モード) ========== */
+    header {
+      background-color: var(--header-bg);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      height: 60px;
+      box-sizing: border-box;
+      z-index: 100;
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .menu-btn { background: none; border: none; font-size: 2rem; color: var(--primary); cursor: pointer; padding: 5px; }
+    .header-home-btn { background: none; border: none; font-size: 1.8rem; cursor: pointer; padding: 5px; transition: 0.2s; }
+    .header-home-btn:hover { transform: scale(1.1); }
+
+    h1 { margin: 0; font-size: 1.2rem; color: var(--primary); text-align: center; flex-grow: 1; }
+
+    /* ========== メインレイアウト (通常モード) ========== */
+    main {
+      display: flex;
+      flex: 1;
+      padding: 15px;
+      gap: 20px;
+      height: calc(100vh - 60px);
+      box-sizing: border-box;
+    }
+    .left-panel {
+      flex: 1; display: flex; flex-direction: column; gap: 10px;
+      background: var(--white); border-radius: 12px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); min-width: 300px;
+    }
+    .left-mode-tabs { display: flex; gap: 10px; margin-bottom: 5px; }
+    .left-mode-tabs label {
+      flex: 1; text-align: center; padding: 8px; background: var(--bg-color); border: 2px solid var(--border);
+      border-radius: 8px; cursor: pointer; font-weight: bold; color: var(--primary);
+    }
+    .left-mode-tabs input[type="radio"] { display: none; }
+    .left-mode-tabs input[type="radio"]:checked + label { background: var(--primary); color: var(--white); border-color: var(--primary); }
+
+    .controls-container { display: flex; gap: 10px; align-items: center; min-height: 40px; }
+    .zoom-btn { padding: 5px 15px; background: var(--header-bg); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; color: var(--primary); font-weight: bold; }
+    .upload-btn { background: var(--primary); color: var(--white); padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; text-align: center; border: none; display: block; }
+
+    .left-content {
+      flex: 1; position: relative; border: 2px dashed var(--border); border-radius: 8px; overflow: auto;
+      background: #fafafa; display: flex; align-items: center; justify-content: center;
+    }
+    #uploadedImg { max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: top left; transition: transform 0.2s ease; display: none; }
+    #teacherCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; display: none; background: var(--white); }
+
+    .right-panel { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 300px; }
+    #zoomAlertBanner {
+      display: none; width: 100%; max-width: 400px; background-color: var(--alert-bg); border: 2px dashed var(--alert-border);
+      color: #333; text-align: center; padding: 10px; border-radius: 8px; font-weight: bold; box-sizing: border-box; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; min-height: 40px; }
+    .tool-btn { padding: 8px 12px; border: 2px solid var(--primary); background: var(--white); color: var(--primary); border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .tool-btn.active { background: var(--primary); color: var(--white); }
+    .tool-btn.clear { border-color: #ff9800; color: #ff9800; font-size: 0.9rem; margin-left: 10px; }
+    .tool-btn.clear:hover { background: #fff3e0; }
+    .tool-btn.stamp-o { border-color: var(--red); color: var(--red); font-size: 1.2rem; }
+    .tool-btn.stamp-x { border-color: var(--blue); color: var(--blue); font-size: 1.2rem; }
+    .tool-btn.stamp-o.active { background: var(--red); color: var(--white); }
+    .tool-btn.stamp-x.active { background: var(--blue); color: var(--white); }
+
+    .canvas-wrapper {
+      position: relative; flex: 1; width: 100%; max-height: calc(100% - 50px); aspect-ratio: 4 / 5;
+      border: 3px solid var(--primary); border-radius: 12px; background: var(--white); box-shadow: 0 4px 10px rgba(0,0,0,0.05); touch-action: none;
+    }
+    .canvas-wrapper canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 8px; }
+    #bgCanvas { z-index: 1; }
+    #drawCanvas { z-index: 2; cursor: crosshair; }
+
+    /* ========== メニュー（使い方の説明） ========== */
+    #sideMenu {
+      position: fixed; top: 0; left: -350px; width: 300px; height: 100%; background: var(--white);
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: 0.3s; z-index: 1000; padding: 20px; overflow-y: auto; box-sizing: border-box;
+    }
+    #sideMenu.open { left: 0; }
+    .close-btn { text-align: right; font-size: 2rem; cursor: pointer; color: var(--primary); }
+    .instruction-block { margin-bottom: 20px; padding: 15px; background: var(--bg-color); border-radius: 8px; line-height: 1.5; }
+
+    .zoom-switch-container { margin-top: 20px; padding: 15px; background: var(--alert-bg); border-radius: 8px; border: 1px solid var(--alert-border); }
+    .zoom-switch-label { display: flex; align-items: center; gap: 10px; font-weight: bold; cursor: pointer; }
+
+    /* ========== 全画面ホワイトボードエリア ========== */
+    .wb-back-btn {
+      position: absolute; top: 15px; left: 15px; padding: 10px 20px; background: var(--white); border: 2px solid var(--border);
+      color: var(--primary); border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 100;
+    }
+    #wbCanvas { display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+    .wb-toolbar {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--bg-color); padding: 10px 20px;
+      border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 2px solid var(--border); display: flex; gap: 15px;
+      align-items: center; flex-wrap: wrap; justify-content: center; width: max-content; max-width: 90%; z-index: 100;
+    }
+    .color-btn { width: 35px; height: 35px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
+    .color-btn.active { border-color: var(--primary); box-shadow: 0 0 5px rgba(0,0,0,0.3); }
+    .color-black { background-color: #333333; }
+    .color-red { background-color: #ff5252; }
+    .color-blue { background-color: #448aff; }
+  </style>
+</head>
+<body>
+
+  <div id="modeTop">
+    <div class="toggle-container" style="position: absolute; top: 20px; right: 20px;">
+      <input type="radio" id="top-mode-hira" name="textMode" value="hira" onchange="updateTextMode(this)" checked>
+      <label for="top-mode-hira">ひらがな</label>
+      <input type="radio" id="top-mode-kanji" name="textMode" value="kanji" onchange="updateTextMode(this)">
+      <label for="top-mode-kanji"><ruby>漢字<rt>かんじ</rt></ruby></label>
+      <input type="radio" id="top-mode-roma" name="textMode" value="roma" onchange="updateTextMode(this)">
+      <label for="top-mode-roma">Romaji</label>
+    </div>
+
+    <h1 class="top-title i18n" data-hira="にほんご レッスン ボード" data-kanji="にほんご レッスン ボード" data-roma="Nihongo Ressun Boodo" data-en="Japanese Lesson Board"></h1>
+    <p class="top-subtitle i18n" data-hira="どちらの ボードを つかいますか？" data-kanji="どちらの ボードを <ruby>使<rt>つか</rt></ruby>いますか？" data-roma="Dochira no boodo o tsukaimasu ka?" data-en="Which board will you use?"></p>
+
+    <div class="top-choices">
+      <div class="choice-card" onclick="showMode('normal')">
+        <div class="choice-icon">📝</div>
+        <div class="choice-title i18n" data-hira="かきかた ボード" data-kanji="<ruby>書<rt>か</rt></ruby>き<ruby>方<rt>かた</rt></ruby>ボード" data-roma="Kakikata Boodo" data-en="Writing Board"></div>
+        <div class="choice-desc i18n" data-hira="がぞうを いれて マスめに かきます" data-kanji="<ruby>画像<rt>がぞう</rt></ruby>をいれて マス<ruby>目<rt>め</rt></ruby>に<ruby>書<rt>か</rt></ruby>きます" data-roma="Gazoo o irete masume ni kakimasu" data-en="(Insert image and write in the grid)"></div>
+      </div>
+
+      <div class="choice-card" onclick="showMode('whiteboard')">
+        <div class="choice-icon">⬜</div>
+        <div class="choice-title i18n" data-hira="ホワイトボード" data-kanji="ホワイトボード" data-roma="Howaitoboodo" data-en="Full Whiteboard"></div>
+        <div class="choice-desc i18n" data-hira="ぜんがめんで じゆうに かきます" data-kanji="<ruby>全画面<rt>ぜんがめん</rt></ruby>で <ruby>自由<rt>じゆう</rt></ruby>に<ruby>書<rt>か</rt></ruby>きます" data-roma="Zengamen de jiyū ni kakimasu" data-en="(Write freely on the full screen)"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modeNormal">
+    <header>
+      <div class="header-left">
+        <button class="menu-btn" onclick="toggleMenu()">≡</button>
+        <button class="header-home-btn" onclick="showMode('top')" title="ホームへ戻る">🏠</button>
+      </div>
+
+      <div class="toggle-container">
+        <input type="radio" id="mode-hira" name="textMode" value="hira" onchange="updateTextMode(this)">
+        <label for="mode-hira">ひらがな</label>
+        <input type="radio" id="mode-kanji" name="textMode" value="kanji" onchange="updateTextMode(this)">
+        <label for="mode-kanji"><ruby>漢字<rt>かんじ</rt></ruby></label>
+        <input type="radio" id="mode-roma" name="textMode" value="roma" onchange="updateTextMode(this)">
+        <label for="mode-roma">Romaji</label>
+      </div>
+      <h1 class="i18n" data-hira="にほんご かきかた ボード" data-kanji="にほんご <ruby>書<rt>か</rt></ruby>き<ruby>方<rt>かた</rt></ruby>ボード" data-roma="Nihongo Kakikata Boodo" data-en="Japanese Writing Board"></h1>
+    </header>
+
+    <div id="sideMenu">
+      <div class="close-btn" onclick="toggleMenu()">×</div>
+      <div style="margin-top: 10px; text-align: center;">
+        <button class="upload-btn home-back-btn" style="width: 100%; padding: 18px 10px; background: var(--primary); border: none; border-bottom: 4px solid var(--primary-hover); border-radius: 12px; cursor: pointer;" onclick="showMode('top')">
+          <span style="font-size: 1.5rem; display: block; margin-bottom: 5px;">🏠</span>
+          <span class="i18n" style="font-weight: bold; font-size: 1.1rem; display: block;" data-hira="ホームへ もどる🏠" data-kanji="ホームへ <ruby>戻<rt>もど</rt></ruby>る" data-roma="Hoomu e modoru" data-en="Back to Home"></span>
+        </button>
+      </div>
+
+      <div class="zoom-switch-container">
+        <label class="zoom-switch-label">
+          <input type="checkbox" id="zoomToggle" onchange="toggleZoomAlert()">
+          <span class="i18n" data-hira="Zoomの ちゅういがきを だす" data-kanji="Zoomの <ruby>注意書<rt>ちゅういが</rt></ruby>きを <ruby>出<rt>だ</rt></ruby>す" data-roma="Zoom no chūigaki o dasu" data-en="Show Zoom instructions"></span>
+        </label>
+      </div>
+
+      <h2 class="i18n" style="margin-top: 20px;" data-hira="つかいかた" data-kanji="<ruby>使<rt>つか</rt></ruby>い<ruby>方<rt>かた</rt></ruby>" data-roma="Tsukaikata" data-en="How to use"></h2>
+      <div class="instruction-block i18n" data-hira="①「がぞうを えらぶ」ボタンを おします。もんだいの がぞうが でます。" data-kanji="①「<ruby>画像<rt>がぞう</rt></ruby>を<ruby>選<rt>えら</rt></ruby>ぶ」ボタンを<ruby>押<rt>お</rt></ruby>します。<ruby>問題<rt>もんだい</rt></ruby>の<ruby>画像<rt>がぞう</rt></ruby>が<ruby>出<rt>で</rt></ruby>ます。" data-roma="① 'Gazoo o erabu' botan o oshimasu. Mondai no gazoo ga demasu." data-en="1. Push the 'Select Image' button."></div>
+      <div class="instruction-block i18n" data-hira="② みぎの ますめに もじを かきます。「ふで」をえらぶと、トメや ハライが できます。" data-kanji="② <ruby>右<rt>みぎ</rt></ruby>のマス<ruby>目<rt>め</rt></ruby>に<ruby>文字<rt>もじ</rt></ruby>を<ruby>書<rt>か</rt></ruby>きます。「<ruby>筆<rt>ふで</rt></ruby>」を<ruby>選<rt>えら</rt></ruby>ぶと、トメやハライができます。" data-roma="② Migi no masume ni moji o kakimasu. 'Fude' o erabuto, tome ya harai ga dekimasu." data-en="2. Write characters in the grid. Use 'Brush' for beautiful strokes."></div>
+      <div class="instruction-block i18n" data-hira="③ せんせいは「〇」や「×」を えらんで スタンプを おします。" data-kanji="③ <ruby>先生<rt>せんせい</rt></ruby>は「〇」や「×」を<ruby>選<rt>えら</rt></ruby>んでスタンプを<ruby>押<rt>お</rt></ruby>します。" data-roma="③ Sensei wa '〇' ya '×' o erande sutanpu o oshimasu." data-en="3. Teachers can select '〇' or '×' to stamp."></div>
+    </div>
+
+    <main>
+      <div class="left-panel">
+        <div class="left-mode-tabs">
+          <input type="radio" id="lmode-img" name="leftMode" value="image" checked onchange="toggleLeftMode()">
+          <label for="lmode-img" class="i18n" data-hira="がぞう (アップロード)" data-kanji="<ruby>画像<rt>がぞう</rt></ruby> (アップロード)" data-roma="Gazoo(Upload)" data-en="Image (Upload)"></label>
+          <input type="radio" id="lmode-draw" name="leftMode" value="draw" onchange="toggleLeftMode()">
+          <label for="lmode-draw" class="i18n" data-hira="せんせいの ボード" data-kanji="<ruby>先生<rt>せんせい</rt></ruby>のボード" data-roma="Sensei no Boodo" data-en="Teacher's Board"></label>
+        </div>
+
+        <div id="imageUI" class="controls-container">
+          <label class="upload-btn">
+            <span class="i18n" data-hira="がぞうを えらぶ" data-kanji="<ruby>画像<rt>がぞう</rt></ruby>を<ruby>選<rt>えら</rt></ruby>ぶ" data-roma="Gazoo o erabu" data-en="Select Image"></span>
+            <input type="file" id="imageInput" accept="image/png, image/jpeg" style="display:none;">
+          </label>
+          <button class="zoom-btn" onclick="changeZoom(0.2)">＋</button>
+          <button class="zoom-btn" onclick="changeZoom(-0.2)">－</button>
+          <button class="zoom-btn" onclick="resetZoom()">100%</button>
+        </div>
+
+        <div id="teacherUI" class="controls-container" style="display:none; justify-content: space-between; width: 100%;">
+          <div style="display: flex; gap: 8px;">
+            <button class="tool-btn btn-pen active" onclick="setMode('pen')"><span class="i18n" data-hira="ペン" data-kanji="ペン" data-roma="Pen" data-en="Pen"></span></button>
+            <button class="tool-btn btn-fude" onclick="setMode('fude')"><span class="i18n" data-hira="ふで" data-kanji="<ruby>筆<rt>ふで</rt></ruby>" data-roma="Fude" data-en="Brush"></span></button>
+            <button class="tool-btn btn-eraser" onclick="setMode('eraser')"><span class="i18n" data-hira="けしゴム" data-kanji="<ruby>消<rt>け</rt></ruby>しゴム" data-roma="Keshigomu" data-en="Eraser"></span></button>
+          </div>
+          <button class="tool-btn clear" onclick="clearTeacherCanvas()">
+            <span class="i18n" data-hira="けす" data-kanji="<ruby>消<rt>け</rt></ruby>す" data-roma="Kesu" data-en="Clear"></span>
+          </button>
+        </div>
+
+        <div class="left-content" id="leftContentArea">
+          <span id="imgPlaceholder" class="i18n" style="color:#aaa;" data-hira="ここに がぞうが でます" data-kanji="ここに<ruby>画像<rt>がぞう</rt></ruby>が<ruby>出<rt>で</rt></ruby>ます" data-roma="Koko ni gazoo ga demasu" data-en="Image will appear here"></span>
+          <img id="uploadedImg" src="" alt="Uploaded Image">
+          <canvas id="teacherCanvas" width="500" height="600"></canvas>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div id="zoomAlertBanner" class="i18n" data-hira="✍️ Zoomの ペンで かいて ください。" data-kanji="✍️ Zoomの ペンで <ruby>書<rt>か</rt></ruby>いて ください。" data-roma="✍️ Zoom no pen de kaite kudasai." data-en="✍️ Please write with the Zoom pen."></div>
+
+        <div class="toolbar">
+          <button class="tool-btn btn-pen active" id="btnPen" onclick="setMode('pen')"><span class="i18n" data-hira="ペン" data-kanji="ペン" data-roma="Pen" data-en="Pen"></span></button>
+          <button class="tool-btn btn-fude" id="btnFude" onclick="setMode('fude')"><span class="i18n" data-hira="ふで" data-kanji="<ruby>筆<rt>ふで</rt></ruby>" data-roma="Fude" data-en="Brush"></span></button>
+          <button class="tool-btn btn-eraser" id="btnEraser" onclick="setMode('eraser')"><span class="i18n" data-hira="けしゴム" data-kanji="<ruby>消<rt>け</rt></ruby>しゴム" data-roma="Keshigomu" data-en="Eraser"></span></button>
+          <button class="tool-btn stamp-o" id="btnO" onclick="setMode('stampO')">〇</button>
+          <button class="tool-btn stamp-x" id="btnX" onclick="setMode('stampX')">×</button>
+          
+          <button class="tool-btn clear" onclick="clearStudentCanvas()">
+            <span class="i18n" data-hira="ぜんぶ けす" data-kanji="<ruby>全部<rt>ぜんぶ</rt></ruby><ruby>消<rt>け</rt></ruby>す" data-roma="Zenbu kesu" data-en="Clear All"></span>
+          </button>
+        </div>
+
+        <div class="canvas-wrapper">
+          <canvas id="bgCanvas" width="400" height="500"></canvas>
+          <canvas id="drawCanvas" width="400" height="500"></canvas>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="modeWhiteboard">
+    <button class="wb-back-btn" onclick="showMode('top')">
+      <span class="i18n" data-hira="ホームへ もどる🏠" data-kanji="ホームへ <ruby>戻<rt>もど</rt></ruby>る🏠" data-roma="Hoomu e modoru" data-en="Back to Home🏠"></span>
+</span>
+    </button>
+
+    <div class="wb-toolbar">
+      <div class="color-btn color-black active" onclick="setWbColor('#333333', this)"></div>
+      <div class="color-btn color-red" onclick="setWbColor('#ff5252', this)"></div>
+      <div class="color-btn color-blue" onclick="setWbColor('#448aff', this)"></div>
+
+      <div style="width: 2px; height: 30px; background: #d1bfe8; margin: 0 5px;"></div>
+
+      <button class="tool-btn active" id="btnWbPen" onclick="setWbMode('pen')"><span class="i18n" data-hira="ペン" data-kanji="ペン" data-roma="Pen" data-en="Pen"></span></button>
+      <button class="tool-btn" id="btnWbEraser" onclick="setWbMode('eraser')"><span class="i18n" data-hira="けしゴム" data-kanji="<ruby>消<rt>け</rt></ruby>しゴム" data-roma="Keshigomu" data-en="Eraser"></span></button>
+      
+      <button class="tool-btn clear" onclick="clearWbCanvas()"><span class="i18n" data-hira="ぜんぶ けす" data-kanji="<ruby>全部<rt>ぜんぶ</rt></ruby><ruby>消<rt>け</rt></ruby>す" data-roma="Zenbu kesu" data-en="Clear All"></span></button>
+    </div>
+    
+    <canvas id="wbCanvas"></canvas>
+  </div>
+
+  <script>
+    function updateTextMode(radioBtn) {
+      let mode;
+      if (radioBtn) {
+        mode = radioBtn.value;
+        document.querySelectorAll(`input[name="textMode"][value="${mode}"]`).forEach(r => r.checked = true);
+      } else {
+        mode = document.querySelector('input[name="textMode"]:checked').value;
+      }
+      document.querySelectorAll('.i18n').forEach(el => {
+        const text = el.getAttribute(`data-${mode}`);
+        const enText = el.getAttribute('data-en');
+        el.innerHTML = enText ? `${text}<br><span class="eng-text">${enText}</span>` : text;
+        if (el.classList.contains('choice-title')) el.innerHTML = text; 
+      });
+    }
+    updateTextMode();
+
+    function toggleMenu() { document.getElementById('sideMenu').classList.toggle('open'); }
+
+    function showMode(targetMode) {
+      const topArea = document.getElementById('modeTop');
+      const normalArea = document.getElementById('modeNormal');
+      const wbArea = document.getElementById('modeWhiteboard');
+
+      topArea.style.display = 'none';
+      normalArea.style.display = 'none';
+      wbArea.style.display = 'none';
+
+      if (targetMode === 'top') {
+        topArea.style.display = 'flex';
+        document.getElementById('sideMenu').classList.remove('open');
+      } else if (targetMode === 'normal') {
+        normalArea.style.display = 'flex';
+        setTimeout(resizeTeacherCanvas, 50); 
+      } else if (targetMode === 'whiteboard') {
+        wbArea.style.display = 'block';
+        resizeWbCanvas();
+      }
+    }
+
+    function toggleZoomAlert() {
+      const isChecked = document.getElementById('zoomToggle').checked;
+      const banner = document.getElementById('zoomAlertBanner');
+      banner.style.display = isChecked ? 'block' : 'none';
+      setTimeout(resizeTeacherCanvas, 50); 
+    }
+
+    function toggleLeftMode() {
+      const mode = document.querySelector('input[name="leftMode"]:checked').value;
+      const img = document.getElementById('uploadedImg');
+      const placeholder = document.getElementById('imgPlaceholder');
+      const canvas = document.getElementById('teacherCanvas');
+      const imageUI = document.getElementById('imageUI');
+      const teacherUI = document.getElementById('teacherUI');
+
+      if (mode === 'image') {
+        imageUI.style.display = 'flex';
+        teacherUI.style.display = 'none';
+        canvas.style.display = 'none';
+        if (img.src && img.src !== window.location.href) {
+          img.style.display = 'block';
+          placeholder.style.display = 'none';
+        } else {
+          placeholder.style.display = 'block';
+        }
+      } else {
+        imageUI.style.display = 'none';
+        teacherUI.style.display = 'flex';
+        img.style.display = 'none';
+        placeholder.style.display = 'none';
+        canvas.style.display = 'block';
+        resizeTeacherCanvas();
+      }
+    }
+
+    let currentZoom = 1;
+    document.getElementById('imageInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = document.getElementById('uploadedImg');
+        img.src = event.target.result;
+        img.style.display = 'block';
+        document.getElementById('imgPlaceholder').style.display = 'none';
+        resetZoom();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function changeZoom(delta) {
+      currentZoom += delta;
+      if(currentZoom < 0.2) currentZoom = 0.2;
+      document.getElementById('uploadedImg').style.transform = `scale(${currentZoom})`;
+    }
+    function resetZoom() {
+      currentZoom = 1;
+      const img = document.getElementById('uploadedImg');
+      img.style.transform = 'scale(1)';
+      img.style.width = '100%'; 
+      img.style.height = '100%';
+    }
+
+    const bgCanvas = document.getElementById('bgCanvas');
+    const drawCanvas = document.getElementById('drawCanvas');
+    const teacherCanvas = document.getElementById('teacherCanvas');
+    const bgCtx = bgCanvas.getContext('2d');
+    const ctx = drawCanvas.getContext('2d');
+    const tCtx = teacherCanvas.getContext('2d');
+    
+    [ctx, tCtx].forEach(c => { c.lineCap = 'round'; c.lineJoin = 'round'; });
+
+    function resizeTeacherCanvas() {
+      if(document.getElementById('teacherCanvas').style.display === 'none') return;
+      const container = document.getElementById('leftContentArea');
+      teacherCanvas.width = container.clientWidth;
+      teacherCanvas.height = container.clientHeight;
+      tCtx.lineCap = 'round'; tCtx.lineJoin = 'round';
+    }
+    
+    window.addEventListener('resize', () => {
+      if(document.getElementById('modeNormal').style.display !== 'none') resizeTeacherCanvas();
+      if(document.getElementById('modeWhiteboard').style.display === 'block') resizeWbCanvas();
+    });
+
+    function drawGrid() {
+      bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+      const cols = 4, rows = 5;
+      const cellW = bgCanvas.width / cols, cellH = bgCanvas.height / rows;
+
+      bgCtx.strokeStyle = '#d1bfe8'; bgCtx.lineWidth = 2;
+      for(let i=1; i<cols; i++) { bgCtx.beginPath(); bgCtx.moveTo(i*cellW, 0); bgCtx.lineTo(i*cellW, bgCanvas.height); bgCtx.stroke(); }
+      for(let i=1; i<rows; i++) { bgCtx.beginPath(); bgCtx.moveTo(0, i*cellH); bgCtx.lineTo(bgCanvas.width, i*cellH); bgCtx.stroke(); }
+
+      bgCtx.strokeStyle = '#e6dcf2'; bgCtx.lineWidth = 1; bgCtx.setLineDash([5, 5]);
+      for(let r=0; r<rows; r++) {
+        for(let c=0; c<cols; c++) {
+          let x = c * cellW, y = r * cellH;
+          bgCtx.beginPath(); bgCtx.moveTo(x, y + cellH/2); bgCtx.lineTo(x + cellW, y + cellH/2); bgCtx.stroke();
+          bgCtx.beginPath(); bgCtx.moveTo(x + cellW/2, y); bgCtx.lineTo(x + cellW/2, y + cellH); bgCtx.stroke();
+        }
+      }
+      bgCtx.setLineDash([]);
+    }
+    drawGrid();
+
+    let isDrawing = false;
+    let currentMode = 'pen';
+    let activeCtx = null;
+    let lastPos = {x: 0, y: 0};
+    let lastTime = 0;
+    let currentLineWidth = 10;
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.btn-pen, .btn-eraser, .btn-fude, .stamp-o, .stamp-x').forEach(btn => btn.classList.remove('active'));
+      if(mode === 'pen') document.querySelectorAll('.btn-pen').forEach(b => b.classList.add('active'));
+      if(mode === 'fude') document.querySelectorAll('.btn-fude').forEach(b => b.classList.add('active'));
+      if(mode === 'eraser') document.querySelectorAll('.btn-eraser').forEach(b => b.classList.add('active'));
+      if(mode === 'stampO') document.getElementById('btnO').classList.add('active');
+      if(mode === 'stampX') document.getElementById('btnX').classList.add('active');
+    }
+
+    function clearStudentCanvas() { ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height); }
+    function clearTeacherCanvas() { tCtx.clearRect(0, 0, teacherCanvas.width, teacherCanvas.height); }
+
+    function getPos(e, canvasObj) {
+      const rect = canvasObj.getBoundingClientRect();
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+      return {
+        x: (clientX - rect.left) * (canvasObj.width / rect.width),
+        y: (clientY - rect.top) * (canvasObj.height / rect.height)
+      };
+    }
+
+    function handleStart(e) {
+      e.preventDefault();
+      const targetCanvas = e.target;
+      activeCtx = (targetCanvas === teacherCanvas) ? tCtx : ctx;
+      const pos = getPos(e, targetCanvas);
+
+      activeCtx.globalCompositeOperation = 'source-over';
+
+      if (currentMode === 'stampO' || currentMode === 'stampX') {
+        activeCtx.font = 'bold 80px sans-serif';
+        activeCtx.textAlign = 'center';
+        activeCtx.textBaseline = 'middle';
+        activeCtx.fillStyle = currentMode === 'stampO' ? '#ff5252' : '#448aff';
+        activeCtx.fillText(currentMode === 'stampO' ? '〇' : '×', pos.x, pos.y);
+      } else if (currentMode === 'eraser') {
+        activeCtx.globalCompositeOperation = 'destination-out';
+        activeCtx.lineWidth = 25;
+        isDrawing = true;
+        activeCtx.beginPath(); activeCtx.moveTo(pos.x, pos.y);
+      } else if (currentMode === 'fude') {
+        activeCtx.strokeStyle = 'rgba(30, 30, 30, 0.9)'; 
+        activeCtx.fillStyle = 'rgba(30, 30, 30, 0.9)';
+        currentLineWidth = 28; 
+        lastPos = pos;
+        lastTime = Date.now();
+        isDrawing = true;
+        
+        activeCtx.beginPath();
+        activeCtx.arc(pos.x, pos.y, currentLineWidth / 2, 0, Math.PI * 2);
+        activeCtx.fill();
+        activeCtx.beginPath();
+        activeCtx.moveTo(pos.x, pos.y);
+      } else {
+        activeCtx.strokeStyle = '#333333';
+        activeCtx.lineWidth = 6;
+        isDrawing = true;
+        activeCtx.beginPath(); activeCtx.moveTo(pos.x, pos.y);
+      }
+    }
+
+    function handleMove(e) {
+      if (!isDrawing || !activeCtx) return;
+      if (currentMode !== 'pen' && currentMode !== 'eraser' && currentMode !== 'fude') return;
+      
+      e.preventDefault();
+      const pos = getPos(e, e.target);
+
+      if (currentMode === 'fude') {
+        const now = Date.now();
+        const dt = Math.max(1, now - lastTime);
+        const distance = Math.sqrt(Math.pow(pos.x - lastPos.x, 2) + Math.pow(pos.y - lastPos.y, 2));
+        const speed = distance / dt;
+
+        let targetWidth = 35 - (speed * 18); 
+        targetWidth = Math.max(1.5, Math.min(35, targetWidth));
+        currentLineWidth = currentLineWidth * 0.6 + targetWidth * 0.4;
+
+        activeCtx.lineWidth = currentLineWidth;
+        activeCtx.beginPath(); 
+        activeCtx.moveTo(lastPos.x, lastPos.y);
+        activeCtx.lineTo(pos.x, pos.y);
+        activeCtx.stroke();
+
+        lastPos = pos;
+        lastTime = now;
+      } else {
+        activeCtx.lineTo(pos.x, pos.y); 
+        activeCtx.stroke();
+      }
+    }
+
+    function handleEnd(e) {
+      if(isDrawing && activeCtx) { e.preventDefault(); isDrawing = false; activeCtx.closePath(); activeCtx = null; }
+    }
+
+    [drawCanvas, teacherCanvas].forEach(canvas => {
+      canvas.addEventListener('pointerdown', handleStart);
+      canvas.addEventListener('pointermove', handleMove);
+      canvas.addEventListener('pointerup', handleEnd);
+      canvas.addEventListener('pointerout', handleEnd);
+    });
+
+    const wbCanvas = document.getElementById('wbCanvas');
+    const wbCtx = wbCanvas.getContext('2d');
+    let isWbDrawing = false;
+    let wbCurrentMode = 'pen';
+    let wbCurrentColor = '#333333';
+
+    function resizeWbCanvas() {
+      const imgData = wbCtx.getImageData(0, 0, wbCanvas.width, wbCanvas.height);
+      wbCanvas.width = window.innerWidth;
+      wbCanvas.height = window.innerHeight;
+      wbCtx.lineCap = 'round'; wbCtx.lineJoin = 'round';
+      if(imgData) wbCtx.putImageData(imgData, 0, 0);
+    }
+
+    function setWbMode(mode) {
+      wbCurrentMode = mode;
+      document.getElementById('btnWbPen').classList.remove('active');
+      document.getElementById('btnWbEraser').classList.remove('active');
+      if(mode === 'pen') document.getElementById('btnWbPen').classList.add('active');
+      if(mode === 'eraser') document.getElementById('btnWbEraser').classList.add('active');
+    }
+
+    function setWbColor(color, element) {
+      wbCurrentColor = color;
+      setWbMode('pen');
+      document.querySelectorAll('.wb-toolbar .color-btn').forEach(btn => btn.classList.remove('active'));
+      element.classList.add('active');
+    }
+
+    function clearWbCanvas() { wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height); }
+
+    function getWbPos(e) {
+      const rect = wbCanvas.getBoundingClientRect();
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    wbCanvas.addEventListener('pointerdown', function(e) {
+      e.preventDefault();
+      isWbDrawing = true;
+      const pos = getWbPos(e);
+      if (wbCurrentMode === 'eraser') {
+        wbCtx.globalCompositeOperation = 'destination-out';
+        wbCtx.lineWidth = 40;
+      } else {
+        wbCtx.globalCompositeOperation = 'source-over';
+        wbCtx.strokeStyle = wbCurrentColor;
+        wbCtx.lineWidth = 6;
+      }
+      wbCtx.beginPath(); wbCtx.moveTo(pos.x, pos.y); wbCtx.lineTo(pos.x, pos.y); wbCtx.stroke();
+    });
+
+    wbCanvas.addEventListener('pointermove', function(e) {
+      if (!isWbDrawing) return;
+      e.preventDefault();
+      const pos = getWbPos(e);
+      wbCtx.lineTo(pos.x, pos.y); wbCtx.stroke();
+    });
+
+    function handleWbEnd(e) {
+      if(isWbDrawing) { e.preventDefault(); isWbDrawing = false; wbCtx.closePath(); }
+    }
+    wbCanvas.addEventListener('pointerup', handleWbEnd);
+    wbCanvas.addEventListener('pointerout', handleWbEnd);
+
+  </script>
+</body>
+</html>
